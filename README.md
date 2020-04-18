@@ -32,20 +32,20 @@ The main interest of BERT is that it is very suitable for sentence pair classifi
 
 #### b) BERT For Senquence Classification
 
-		We fine tuned the `BertForSentenceClassification` pretrained model from the transformers librairy. We used the `base-uncased` embeddings with 12 transfomer blocks with a hidden layer size at 768 (can be considered as embedding size. For example we tried to export this layer's weights and use it as features in different scikit-learn classifiers but this technique poorly performed with 64% of accuracy at best). This model loads 110M parameters then.
-		
-		We set the initial learning rate at `2e-5` and used a Adam optimizer with weight decay at a factor of 0.1 (not for all weights). We also used a linear scheduler without warm up (`num_warmup_step=0`)
-		
-		- Attention mask
-		- Token type ID
+We fine tuned the `BertForSentenceClassification` pretrained model from the transformers librairy. We used the `base-uncased` embeddings with 12 transfomer blocks with a hidden layer size at 768 (can be considered as embedding size. For example we tried to export this layer's weights and use it as features in different scikit-learn classifiers but this technique poorly performed with 64% of accuracy at best). This model loads 110M parameters then.
+
+We set the initial learning rate at `2e-5` and used a Adam optimizer with weight decay at a factor of 0.1 (not for all weights). We also used a linear scheduler without warm up (`num_warmup_step=0`)
+
+- Attention mask: 
+- Token type ID: 
 
 #### c) Header classifier
 		
-		Instead of the natural linear classifier used by `BertForSentenceClassification`, we used two fully connected layer to decrease smoothly the neurons from 768 to 64 then from 64 to 3 (the number of labels).
+Instead of the natural linear classifier used by `BertForSentenceClassification`, we used two fully connected layer to decrease smoothly the neurons from 768 to 64 then from 64 to 3 (the number of labels).
 
 ## 3. Model Performance
 	
-	The accuracy score of the model we finally kept is
+The accuracy score of the model we finally kept is
 
 ## 4. References
 
