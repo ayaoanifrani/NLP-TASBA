@@ -19,8 +19,8 @@ In our work, we used, apart from native Python librairies,
 After trying out several approaches, our final method is one of the approaches in *Sun et al. (2019)*. More precisely, the modelisation that gives us the best accuracy on the dev set is the **NLI-M** (as the problem is not exactly the same, we adapt it a little here):
 - First we are modelling this Target Aspect-Based classification problem as a sentence pair classification problem
 - The sentences are: one sentence (*the question*) formed from the aspect and the category; and the second sentence is simply the initial one
-- For exemple, with the category being `AMBIENCE#GENERAL` and the word to be focused on being `seating`, the first example in the train set becomes (with the separation made with a question mark): 
-```
+- For exemple, with the category being `"AMBIENCE#GENERAL"` and the word to be focused on being `"seating"`, the first example in the train set becomes (with the separation made with a question mark): 
+```python
 "seating - ambience ? short and sweet – seating is great:it's romantic,cozy and private."
 ```
 
