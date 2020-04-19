@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification, BertConfig
@@ -11,25 +10,24 @@ from tqdm import tqdm
 import spacy
 import time
 import datetime
-import string
-import itertools
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 nlp = spacy.load("en_core_web_sm")
 
 
+# This is the classifier to be added to the BERT model
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.kernel_size = 24
-        self.fc1 = nn.Linear(768 // self.kernel_size, 3)
-        self.pooling1 = nn.AvgPool1d(self.kernel_size)
+        self.pooling = nn.AvgPool1d(self.kernel_size)  # Average pooling layer
+        self.fc = nn.Linear(768 // self.kernel_size, 3)  # Fully connected layer
 
     def forward(self, x):
-        x = x.view(-1, 1, 768)
-        x = self.pooling1(x)
+        x = x.view(-1, 1, 768)  # Need to reshape x before giving it to the pooling layer
+        x = self.pooling(x)
         x = torch.relu(x.view(-1, 768 // self.kernel_size))
-        x = self.fc1(x)
+        x = self.fc(x)
         return x
 
 
@@ -48,15 +46,15 @@ class Classifier:
     """The Classifier"""
 
     #############################################
-    def __init__(self, train_batch_size=16, eval_batch_size=8, max_length=128, lr=2e-5, eps=1e-6, n_epochs=11):
+    def __init__(self, train_batch_size=16, eval_batch_size=8, max_length=128, lr=2e-5, eps=1e-6, n_epochs=12):
         """
 
-        :param train_batch_size:
-        :param eval_batch_size:
-        :param max_length:
-        :param lr:
-        :param eps:
-        :param n_epochs:
+        :param train_batch_size: (int) Training batch size
+        :param eval_batch_size: (int) Batch size while using the `predict` method.
+        :param max_length: (int) Maximum length for padding
+        :param lr: (float) Learning rate
+        :param eps: (float) Adam otpimizer epsilon parameter
+        :param n_epochs: (int) Number of epochs to train
         """
         # model parameters
         self.train_batch_size = train_batch_size
@@ -75,19 +73,23 @@ class Classifier:
         # Tokenizer
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-        # The model
-
+        # The model #
         #   We first need to specify some configurations to the model
-        configs = BertConfig.from_pretrained('bert-base-uncased', num_labels=3, type_vocab_size=8)
+        configs = BertConfig.from_pretrained('bert-base-uncased', num_labels=3, type_vocab_size=8)  # BERT configuration
         self.model = BertForSequenceClassification(configs)
 
-        #   We are changing the header classifier of BERT (Which is initially a Linear layer)
+        #   We are changing the header classifier of the model (Which is initially a simple fully connect layer layer)
         clf = Net()
         self.model.classifier = clf
 
         self.model.to(device)  # putting the model on GPU if available otherwise device is CPU
 
     def preprocess(self, sentences):
+        """
+        The preprocessing function
+        :param sentences: List of all sentences to be given at once.
+        :return: List of preprocessed sentences.
+        """
 
         preprocessed = []
         for sentence in tqdm(sentences):
@@ -97,22 +99,24 @@ class Classifier:
             tokens = []
             for token in doc:
                 if (not token.is_punct) or (token.text not in [',', '-', '.', "'", '!']):  # Some punctuations can be interesting for BERT
-                    if not token.is_stop:  # removing stop words
-                        tokens.append(token.text)
+                    tokens.append(token.text)
             tokens = (' '.join(tokens)).lower().replace(" '", "'")
             preprocessed.append(tokens)
 
         return preprocessed
 
     def question(self, category):
+        """
+        Computes the questions corresponding to each category
+        :param category: (str) The category/aspect
+        :return: (str) computed question using the QA-M task
+        """
         assert category in self.categories
 
         if category == 'AMBIENCE#GENERAL':
             return "what do you think of the ambience of it ?"
-
         elif category == 'DRINKS#PRICES' or category == 'FOOD#PRICES' or category == 'RESTAURANT#PRICES':
             return "what do you think of the price of it ?"
-
         elif category == 'DRINKS#QUALITY' or category == 'FOOD#QUALITY':
             return "what do you think of the quality of it ?"
         elif category == 'DRINKS#STYLE_OPTIONS':
@@ -121,10 +125,8 @@ class Classifier:
             return "what do you think of the food ?"
         elif category == 'LOCATION#GENERAL':
             return "what do you think of the location of it ?"
-
         elif category == 'RESTAURANT#GENERAL' or category == 'RESTAURANT#MISCELLANEOUS':
             return "what do you think of the restaurant ?"
-
         elif category == 'SERVICE#GENERAL':
             return "what do you think of the service of it ?"
 
@@ -132,7 +134,7 @@ class Classifier:
         """Trains the classifier model on the training set stored in file trainfile"""
 
         # Loading the data and splitting up its information in lists
-        print("  Loading training data...")
+        print("   Loading training data...")
         trainset = np.genfromtxt(trainfile, delimiter='\t', dtype=str, comments=None)
         self.trainset = trainset
         n = len(trainset)
@@ -141,15 +143,17 @@ class Classifier:
         self.labels = list(Counter(targets).keys())  # label names
         self.categories = list(Counter(categories).keys())  # category names
         start_end = [[int(x) for x in w.split(':')] for w in trainset[:, 3]]
+        # target words
         words_of_interest = [trainset[:, 4][i][start_end[i][0]:start_end[i][1]] for i in range(n)]
+        # sentences to be classified
         sentences = [str(s) for s in trainset[:, 4]]
 
         # Preprocessing the text data
-        print("  Preprocessing the text data...")
+        print("   Preprocessing the text data...")
         sentences = self.preprocess(sentences)
 
         # Computing question sequences
-        print("  Computing questions...")
+        print("   Computing questions...")
         questions = [self.question(categories[i]) for i in tqdm(range(n))]
 
         # Tokenization
@@ -189,7 +193,7 @@ class Classifier:
                                       batch_size=self.train_batch_size,
                                       sampler=train_sampler)
 
-        # Optimizer and scheduler (we are using a linear scheduler without warm up here)
+        # Optimizer and scheduler (we are using a linear scheduler without warm up)
         no_decay = ['bias', 'gamma', 'beta']  # These parameters are not going to be decreased
         optimizer_parameters = [
             {'params': [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -208,8 +212,8 @@ class Classifier:
         # Training
         initial_t0 = time.time()
         for epoch in range(self.n_epochs):
-            print('\n  ======== Epoch %d / %d ========' % (epoch + 1, self.n_epochs))
-            print('  Training...\n')
+            print('\n   ======== Epoch %d / %d ========' % (epoch + 1, self.n_epochs))
+            print('   Training...\n')
             t0 = time.time()
             total_train_loss = 0
 
@@ -217,6 +221,7 @@ class Classifier:
             for step, batch in enumerate(train_dataloader):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids_, input_mask_, segment_ids_, label_ids_ = batch
+
                 self.model.zero_grad()
                 loss, _ = self.model(input_ids_,
                                      token_type_ids=segment_ids_,
@@ -233,9 +238,9 @@ class Classifier:
 
             avg_train_loss = total_train_loss / len(train_dataloader)
             training_time = format_time(time.time() - t0)
-            print("    Average training loss: {0:.2f}".format(avg_train_loss))
-            print("    Training epoch duration: {:}".format(training_time))
-        print("    Total training time: {:}".format(format_time(time.time() - initial_t0)))
+            print("     Average training loss: {0:.2f}".format(avg_train_loss))
+            print("     Training epoch duration: {:}".format(training_time))
+        print("     Total training time: {:}".format(format_time(time.time() - initial_t0)))
 
     def predict(self, datafile):
         """Predicts class labels for the input instances in file 'datafile'
@@ -247,15 +252,17 @@ class Classifier:
         m = len(evalset)
         categories = evalset[:, 1]
         start_end = [[int(x) for x in w.split(':')] for w in evalset[:, 3]]
+        # target words
         words_of_interest = [evalset[:, 4][i][start_end[i][0]:start_end[i][1]] for i in range(m)]
+        # sentences to be classified
         sentences = [str(s) for s in evalset[:, 4]]
 
         # Preprocessing the text data
-        print("  Preprocessing the text data...")
+        print("   Preprocessing the text data...")
         sentences = self.preprocess(sentences)
 
         # Computing question sequences
-        print("  Computing questions...")
+        print("   Computing questions...")
         questions = [self.question(categories[i]) for i in tqdm(range(m))]
 
         # Tokenization

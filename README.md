@@ -47,11 +47,11 @@ We set the initial learning rate at `2e-5` and used a Adam optimizer with weight
 
 #### c) Header classifier
 		
-`BertForSentenceClassification` comes with a linear classifier (a fully conected layer of input size 768). But we used another classifier instead of that one. So the head of the neural network is a Average pooling layer with a kernel size of 16 and a fully connected layer of input size 48).
+`BertForSentenceClassification` comes with a linear classifier (a fully conected layer of input size 768). But we used another classifier instead of that one. So the head of the neural network is a Average pooling layer with a kernel size of 24 and a fully connected layer of input size 32).
 
 ## 3. Model Performance
 	
-The accuracy score of the model we finally kept is 77.03 (std=1.23 on 5 tests) and lasted 267s per run.
+The accuracy score of the model we finally kept is 77.03 (std=1.23 on 5 tests) and lasted 267s per run. Full result: ```python [77.39, 78.72, 75.8, 75.53, 77.93]```
 
 ## 4. References
 
