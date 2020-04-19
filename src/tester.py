@@ -17,21 +17,24 @@ def set_reproducible():
     rn.seed(12345)
 
 
+
 def load_label_output(filename):
     with open(filename, 'r', encoding='UTF-8') as f:
         return [line.strip().split("\t")[0] for line in f if line.strip()]
 
 
+
 def eval_list(glabels, slabels):
     if (len(glabels) != len(slabels)):
         print("\nWARNING: label count in system output (%d) is different from gold label count (%d)\n" % (
-            len(slabels), len(glabels)))
+        len(slabels), len(glabels)))
     n = min(len(slabels), len(glabels))
     incorrect_count = 0
     for i in range(n):
         if slabels[i] != glabels[i]: incorrect_count += 1
     acc = (n - incorrect_count) / n
-    return acc * 100
+    return acc*100
+
 
 
 def train_and_eval(classifier, trainfile, devfile, testfile, run_id):
@@ -62,8 +65,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         n_runs = int(sys.argv[1])
     datadir = "../data/"
-    trainfile = datadir + "traindata.csv"
-    devfile = datadir + "devdata.csv"
+    trainfile =  datadir + "traindata.csv"
+    devfile =  datadir + "devdata.csv"
     testfile = None
     # testfile = datadir + "testdata.csv"
 
@@ -71,11 +74,11 @@ if __name__ == "__main__":
     start_time = time.perf_counter()
     devaccs = []
     testaccs = []
-    for i in range(1, n_runs + 1):
-        classifier = Classifier()
+    for i in range(1, n_runs+1):
+        classifier =  Classifier()
         devacc, testacc = train_and_eval(classifier, trainfile, devfile, testfile, i)
-        devaccs.append(np.round(devacc, 2))
-        testaccs.append(np.round(testacc, 2))
+        devaccs.append(np.round(devacc,2))
+        testaccs.append(np.round(testacc,2))
     print('\nCompleted %d runs.' % n_runs)
     total_exec_time = (time.perf_counter() - start_time)
     print("Dev accs:", devaccs)
@@ -84,3 +87,9 @@ if __name__ == "__main__":
     print("Mean Dev Acc.: %.2f (%.2f)" % (np.mean(devaccs), np.std(devaccs)))
     print("Mean Test Acc.: %.2f (%.2f)" % (np.mean(testaccs), np.std(testaccs)))
     print("\nExec time: %.2f s. ( %d per run )" % (total_exec_time, total_exec_time / n_runs))
+
+
+
+
+
+

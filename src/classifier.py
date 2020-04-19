@@ -26,7 +26,7 @@ class Net(nn.Module):
     def forward(self, x):
         x = x.view(-1, 1, 768)  # Need to reshape x before giving it to the pooling layer
         x = self.pooling(x)
-        x = torch.relu(x.view(-1, 768 // self.kernel_size))
+        x = torch.relu(x)
         x = self.fc(x)
         return x
 
@@ -53,7 +53,7 @@ class Classifier:
         :param eval_batch_size: (int) Batch size while using the `predict` method.
         :param max_length: (int) Maximum length for padding
         :param lr: (float) Learning rate
-        :param eps: (float) Adam otpimizer epsilon parameter
+        :param eps: (float) Adam optimizer epsilon parameter
         :param n_epochs: (int) Number of epochs to train
         """
         # model parameters
@@ -134,7 +134,7 @@ class Classifier:
         """Trains the classifier model on the training set stored in file trainfile"""
 
         # Loading the data and splitting up its information in lists
-        print("   Loading training data...")
+        print("\n   Loading training data...")
         trainset = np.genfromtxt(trainfile, delimiter='\t', dtype=str, comments=None)
         self.trainset = trainset
         n = len(trainset)
@@ -258,7 +258,7 @@ class Classifier:
         sentences = [str(s) for s in evalset[:, 4]]
 
         # Preprocessing the text data
-        print("   Preprocessing the text data...")
+        print("\n   Preprocessing the text data...")
         sentences = self.preprocess(sentences)
 
         # Computing question sequences
