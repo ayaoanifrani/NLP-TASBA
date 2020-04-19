@@ -40,7 +40,7 @@ As BERT has been trained to learn a very broad syntax and semantic including fro
 
 We fine tuned the `BertForSentenceClassification` pretrained model from the transformers librairy. We used the `base-uncased` embeddings with 12 transfomer blocks with a hidden layer size at 768 (can be considered as embedding size. For example we tried to export this layer's weights and use it as features in different scikit-learn classifiers but this technique poorly performed with 64% of accuracy at best). This model loads 110M parameters then.
 
-We set the initial learning rate at `2e-5` and used a Adam optimizer with weight decay at a factor of 0.01 (not for all weights). We also used a linear scheduler without warm up (`num_warmup_step=0`). The training batch size is 16 and we the training takes 12 epochs.
+We set the initial learning rate at `2e-5` and used a Adam optimizer with weight decay at a factor of 0.01 (not for all weights). We also used a linear scheduler without warm up (`num_warmup_step=0`). The training batch size is 16 and we the training takes 11 epochs.
 
 - Attention mask: Useful for padding. BERT tokenizer sets the mask at 1 for our words and 0 for padded tokens.
 - Token type ID: This is useful to make a difference between the two sequences in the pair. Here, the answer's tokens have a ID at 0 and the question's tokens ID are 0.

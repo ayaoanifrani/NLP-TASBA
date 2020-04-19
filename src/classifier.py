@@ -26,7 +26,7 @@ class Net(nn.Module):
     def forward(self, x):
         x = x.view(-1, 1, 768)  # Need to reshape x before giving it to the pooling layer
         x = self.pooling(x)
-        x = torch.relu(x)
+        x = torch.relu(x.view(-1, 768//self.kernel_size))
         x = self.fc(x)
         return x
 
@@ -46,7 +46,7 @@ class Classifier:
     """The Classifier"""
 
     #############################################
-    def __init__(self, train_batch_size=16, eval_batch_size=8, max_length=128, lr=2e-5, eps=1e-6, n_epochs=12):
+    def __init__(self, train_batch_size=16, eval_batch_size=8, max_length=128, lr=2e-5, eps=1e-6, n_epochs=11):
         """
 
         :param train_batch_size: (int) Training batch size
@@ -238,7 +238,7 @@ class Classifier:
 
             avg_train_loss = total_train_loss / len(train_dataloader)
             training_time = format_time(time.time() - t0)
-            print("     Average training loss: {0:.2f}".format(avg_train_loss))
+            # print("     Average training loss: {0:.2f}".format(avg_train_loss))
             print("     Training epoch duration: {:}".format(training_time))
         print("     Total training time: {:}".format(format_time(time.time() - initial_t0)))
 
