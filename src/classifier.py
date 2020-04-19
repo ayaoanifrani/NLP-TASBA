@@ -17,12 +17,18 @@ import itertools
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 nlp = spacy.load("en_core_web_sm")
 
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.fc1 = nn.Linear(768, 3)
+        self.kernel_size = 24
+        self.fc1 = nn.Linear(768 // self.kernel_size, 3)
+        self.pooling1 = nn.AvgPool1d(self.kernel_size)
 
     def forward(self, x):
+        x = x.view(-1, 1, 768)
+        x = self.pooling1(x)
+        x = torch.relu(x.view(-1, 768 // self.kernel_size))
         x = self.fc1(x)
         return x
 
@@ -42,7 +48,7 @@ class Classifier:
     """The Classifier"""
 
     #############################################
-    def __init__(self, train_batch_size=16, eval_batch_size=8, max_length=128, lr=1e-5, eps=1e-6, n_epochs=11):
+    def __init__(self, train_batch_size=16, eval_batch_size=8, max_length=128, lr=2e-5, eps=1e-6, n_epochs=11):
         """
 
         :param train_batch_size:
@@ -67,63 +73,66 @@ class Classifier:
         self.model = None
 
         # Tokenizer
-        self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
         # The model
 
         #   We first need to specify some configurations to the model
-        configs = BertConfig.from_pretrained('bert-large-uncased', num_labels=3)
+        configs = BertConfig.from_pretrained('bert-base-uncased', num_labels=3, type_vocab_size=8)
         self.model = BertForSequenceClassification(configs)
 
         #   We are changing the header classifier of BERT (Which is initially a Linear layer)
-        #clf = Net()
-        #self.model.classifier = clf
+        clf = Net()
+        self.model.classifier = clf
 
         self.model.to(device)  # putting the model on GPU if available otherwise device is CPU
 
-    def preprocess(self, sentence):
+    def preprocess(self, sentences):
 
-        assert isinstance(sentence, str)
-        doc = nlp(str(sentence))
-        tokens = []
-        for token in doc:
-            if (not token.is_punct) or (token.text not in [',', '-', '.', "'", '!']):  ## Some punctuations can be interesting for BERT
-                tokens.append(token.text)
-        tokens = (' '.join(tokens)).lower().replace(" '", "'")
+        preprocessed = []
+        for sentence in tqdm(sentences):
 
-        return tokens
+            assert isinstance(sentence, str)
+            doc = nlp(str(sentence))
+            tokens = []
+            for token in doc:
+                if (not token.is_punct) or (token.text not in [',', '-', '.', "'", '!']):  # Some punctuations can be interesting for BERT
+                    if not token.is_stop:  # removing stop words
+                        tokens.append(token.text)
+            tokens = (' '.join(tokens)).lower().replace(" '", "'")
+            preprocessed.append(tokens)
 
-    def question(self, word, category):
+        return preprocessed
+
+    def question(self, category):
         assert category in self.categories
 
         if category == 'AMBIENCE#GENERAL':
-            return "what do you think of " + word.lower() + " and the ambience ? "
+            return "what do you think of the ambience of it ?"
 
         elif category == 'DRINKS#PRICES' or category == 'FOOD#PRICES' or category == 'RESTAURANT#PRICES':
-            return "what do you think of " + word.lower() + " and the price ? "
+            return "what do you think of the price of it ?"
 
-        elif category == 'DRINKS#QUALITY':
-            return "what do you think of " + word.lower() + " and the quality of drinks ? "
+        elif category == 'DRINKS#QUALITY' or category == 'FOOD#QUALITY':
+            return "what do you think of the quality of it ?"
         elif category == 'DRINKS#STYLE_OPTIONS':
-            return "what do you think of " + word.lower() + " and the diversity of drinks ? "
-        elif category == 'FOOD#QUALITY':
-            return "what do you think of " + word.lower() + " and the quality of food ? "
+            return "what do you think of drinks ?"
         elif category == 'FOOD#STYLE_OPTIONS':
-            return "what do you think of " + word.lower() + " and the diversity of food ? "
+            return "what do you think of the food ?"
         elif category == 'LOCATION#GENERAL':
-            return "what do you think of " + word.lower() + " and the location ? "
+            return "what do you think of the location of it ?"
 
         elif category == 'RESTAURANT#GENERAL' or category == 'RESTAURANT#MISCELLANEOUS':
-            return "what do you think of " + word.lower() + " and the restaurant ? "
+            return "what do you think of the restaurant ?"
 
         elif category == 'SERVICE#GENERAL':
-            return "what do you think of " + word.lower() + " and the service ? "
+            return "what do you think of the service of it ?"
 
     def train(self, trainfile):
         """Trains the classifier model on the training set stored in file trainfile"""
 
         # Loading the data and splitting up its information in lists
-        print("Loading training data...")
+        print("  Loading training data...")
         trainset = np.genfromtxt(trainfile, delimiter='\t', dtype=str, comments=None)
         self.trainset = trainset
         n = len(trainset)
@@ -136,21 +145,21 @@ class Classifier:
         sentences = [str(s) for s in trainset[:, 4]]
 
         # Preprocessing the text data
-        print("Preprocessing the text data...")
-        sentences = [self.preprocess(sentence) for sentence in tqdm(sentences)]
+        print("  Preprocessing the text data...")
+        sentences = self.preprocess(sentences)
 
         # Computing question sequences
-        print("Computing questions...")
-        questions = [self.question(words_of_interest[i], categories[i]) for i in tqdm(range(n))]
+        print("  Computing questions...")
+        questions = [self.question(categories[i]) for i in tqdm(range(n))]
 
         # Tokenization
         attention_masks = []
         input_ids = []
         token_type_ids = []
         labels = []
-        for question, answer in zip(questions, sentences):
-            encoded_dict = self.tokenizer.encode_plus(question, answer,
-                                                      add_special_tokens=True,  # Add '[CLS]' and '[SEP]'
+        for word, question, answer in zip(words_of_interest, questions, sentences):
+            encoded_dict = self.tokenizer.encode_plus(answer, question + ' ' + word.lower(),
+                                                      add_special_tokens=True,  # Add '[CLS]' and '[SEP]' tokens
                                                       max_length=self.max_length,  # Pad & truncate all sequences
                                                       pad_to_max_length=True,
                                                       return_attention_mask=True,  # Construct attention masks
@@ -199,18 +208,13 @@ class Classifier:
         # Training
         initial_t0 = time.time()
         for epoch in range(self.n_epochs):
-            print('\n======== Epoch %d / %d ========' % (epoch + 1, self.n_epochs))
-            print('Training...\n')
+            print('\n  ======== Epoch %d / %d ========' % (epoch + 1, self.n_epochs))
+            print('  Training...\n')
             t0 = time.time()
             total_train_loss = 0
 
             self.model.train()
             for step, batch in enumerate(train_dataloader):
-
-                #if step % 20 == 0 and not step == 0:
-                    # Calculate elapsed time.
-                    #elapsed = format_time(time.time() - t0)
-                    #print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
                 batch = tuple(t.to(device) for t in batch)
                 input_ids_, input_mask_, segment_ids_, label_ids_ = batch
                 self.model.zero_grad()
@@ -229,9 +233,9 @@ class Classifier:
 
             avg_train_loss = total_train_loss / len(train_dataloader)
             training_time = format_time(time.time() - t0)
-            print("  Average training loss: {0:.2f}".format(avg_train_loss))
-            print("  Training epoch duration: {:}".format(training_time))
-        print("  Total training time: {:}".format(format_time(time.time() - initial_t0)))
+            print("    Average training loss: {0:.2f}".format(avg_train_loss))
+            print("    Training epoch duration: {:}".format(training_time))
+        print("    Total training time: {:}".format(format_time(time.time() - initial_t0)))
 
     def predict(self, datafile):
         """Predicts class labels for the input instances in file 'datafile'
@@ -247,19 +251,19 @@ class Classifier:
         sentences = [str(s) for s in evalset[:, 4]]
 
         # Preprocessing the text data
-        print("Preprocessing the text data...")
-        sentences = [self.preprocess(sentence) for sentence in tqdm(sentences)]
+        print("  Preprocessing the text data...")
+        sentences = self.preprocess(sentences)
 
         # Computing question sequences
-        print("Computing questions...")
-        questions = [self.question(words_of_interest[i], categories[i]) for i in tqdm(range(m))]
+        print("  Computing questions...")
+        questions = [self.question(categories[i]) for i in tqdm(range(m))]
 
         # Tokenization
         attention_masks = []
         input_ids = []
         token_type_ids = []
-        for question, answer in zip(questions, sentences):
-            encoded_dict = self.tokenizer.encode_plus(question, answer,
+        for word, question, answer in zip(words_of_interest, questions, sentences):
+            encoded_dict = self.tokenizer.encode_plus(answer, question + ' ' + word.lower(),
                                                       add_special_tokens=True,  # Add '[CLS]' and '[SEP]'
                                                       max_length=self.max_length,  # Pad & truncate all sequences
                                                       pad_to_max_length=True,

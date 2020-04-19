@@ -34,7 +34,7 @@ The main interest of BERT is that it is very suitable for sentence pair classifi
 
 #### a) Text preprocessing
 
-As BERT has been trained to learn a very broad syntax and semantic including from ponctuated sentences, we decided to do only a few preprocessing. Thus, we only removed punctuactions instead of those in `[',', '-', '.', "'", '!']`.
+As BERT has been trained to learn a very broad syntax and semantic including from ponctuated sentences, we decided to do only a few preprocessing. Thus, we only removed punctuactions instead of those in `[',', '-', '.', "'", '!']`. For example, deleting the stop words makes the accuracy decreases.
 
 #### b) BERT For Senquence Classification
 
