@@ -51,7 +51,7 @@ We set the initial learning rate at `2e-5` and used a Adam optimizer with weight
 
 ## 3. Model Performance
 	
-The accuracy score of the model we finally kept is
+The accuracy score of the model we finally kept is 77.03 (std=1.23 on 5 tests) and lasted 267s per run.
 
 ## 4. References
 
