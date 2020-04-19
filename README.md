@@ -51,7 +51,10 @@ We set the initial learning rate at `2e-5` and used a Adam optimizer with weight
 
 ## 3. Model Performance
 	
-The accuracy score of the model we finally kept is 77.03 (std=1.23 on 5 tests) and lasted 267s per run. Full result: ```python [77.39, 78.72, 75.8, 75.53, 77.93]```
+The accuracy score of the model we finally kept is 77.03 (std=1.23 on 5 tests) and lasted 267s per run. Full result: 
+```python 
+[77.39, 78.72, 75.8, 75.53, 77.93]
+```
 
 ## 4. References
 
